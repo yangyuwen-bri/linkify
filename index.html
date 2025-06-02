@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>素人稿件分发智能体</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 16px;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .upload-area {
+            border: 3px dashed #ddd;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .upload-area:hover {
+            border-color: #4facfe;
+            background: #f8fcff;
+        }
+        
+        .upload-area.dragover {
+            border-color: #4facfe;
+            background: #e3f2fd;
+        }
+        
+        .upload-icon {
+            font-size: 48px;
+            color: #ddd;
+            margin-bottom: 20px;
+        }
+        
+        .upload-text {
+            font-size: 18px;
+            color: #666;
+            margin-bottom: 15px;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .settings {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .settings h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .result-area {
+            margin-top: 30px;
+        }
+        
+        .result-box {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            background: #f8f9fa;
+            font-family: monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .copy-btn {
+            background: #28a745;
+            margin-top: 10px;
+        }
+        
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .preview-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        
+        .preview-table th,
+        .preview-table td {
+            border: 1px solid #ddd;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        
+        .preview-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+        
+        .preview-table td a {
+            color: #4facfe;
+            text-decoration: none;
+            word-break: break-all;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4facfe;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .motivation-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.9); /* Initial small scale */
+            background-color: rgba(40, 40, 40, 0.9); /* Darker, slightly more transparent */
+            color: white;
+            padding: 25px 40px;
+            border-radius: 12px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.25); /* Softer shadow */
+            z-index: 1000;
+            display: none; 
+            text-align: center;
+            font-size: 18px; /* Slightly larger font */
+            font-weight: 500; /* Medium weight */
+            opacity: 0;
+            transition: opacity 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); /* Smoother transition */
+        }
+
+        .motivation-popup.show {
+            display: block;
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1); /* Full scale */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 素人稿件分发智能体</h1>
+            <p>上传Excel文件，智能处理并生成所需信息</p>
+        </div>
+        
+        <div class="content">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">点击选择Excel文件或拖拽文件到此处</div>
+                <button class="btn">选择文件</button>
+                <input type="file" class="file-input" id="fileInput" accept=".xlsx,.xls">
+            </div>
+            
+            <div class="settings">
+                <h3>⚙️ 设置选项</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>用户名列 (列号)</label>
+                        <input type="number" id="userColumn" value="1" min="1" placeholder="例如: 1 (A列)">
+                    </div>
+                    <div class="form-group">
+                        <label>链接列 (列号)</label>
+                        <input type="number" id="linkColumn" value="2" min="1" placeholder="例如: 2 (B列)">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>开始行号</label>
+                        <input type="number" id="startRow" value="2" min="1" placeholder="例如: 2 (跳过标题行)">
+                    </div>
+                    <div class="form-group">
+                        <label>消息前缀</label>
+                        <input type="text" id="messagePrefix" value="📄 本批次文档链接如下，请及时编辑：" placeholder="自定义消息开头">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>消息后缀</label>
+                    <input type="text" id="messageSuffix" value="请大家尽快完成编辑，谢谢！" placeholder="自定义消息结尾">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="batchSize">分批数量</label>
+                        <input type="number" id="batchSize" value="50" min="1" placeholder="每批消息的用户数">
+                    </div>
+                    <div class="form-group">
+                        <label for="batchMode">消息模式</label>
+                        <select id="batchMode">
+                            <option value="single" selected>单条消息 (合并所有用户)</option>
+                            <option value="batch">分批消息 (按数量拆分)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="status"></div>
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <div>正在处理文件...</div>
+            </div>
+            <div id="preview"></div>
+            <div id="result" class="result-area" style="display: none;">
+                <div id="resultText"></div> 
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script>
+        let currentData = null;
+        let motivationPopup;
+        let motivationText;
+
+        const motivationalMessages = [
+            "复制成功！漂亮宝宝棒棒哒！✨",
+            "搞定！不愧是勤劳的小蜜蜂！🐝",
+            "任务完成！给努力的你点个赞！👍",
+            "哇，太高效了！小美女辛苦啦！💖",
+            "复制好了！向你的完美工作致敬！🌟",
+            "太厉害了！小瘦宝宝又完成一项大作！🎉",
+            "完美！你就是最闪亮的星！💫",
+            "干得漂亮！今天也是元气满满的一天！💪",
+            "马上收工！奖励你一朵小红花！🌸"
+        ];
+
+        function showMotivation() {
+            const randomIndex = Math.floor(Math.random() * motivationalMessages.length);
+            motivationText.textContent = motivationalMessages[randomIndex];
+            
+            motivationPopup.classList.add('show');
+
+            // Trigger confetti
+            if (typeof confetti === 'function') {
+                confetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
+            }
+
+            setTimeout(() => {
+                motivationPopup.classList.remove('show');
+            }, 3000); // Hide after 3 seconds
+        }
+        
+        // File upload related
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        
+        uploadArea.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', handleFile);
+        
+        // Drag and drop functionality
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                processFile(files[0]);
+            }
+        });
+        
+        function handleFile(event) {
+            const file = event.target.files[0];
+            if (file) {
+                processFile(file);
+            }
+        }
+        
+        function processFile(file) {
+            showStatus('正在读取文件...', 'success');
+            showLoading(true);
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array', cellStyles: true});
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    
+                    const extractedData = extractDataWithHyperlinks(worksheet);
+                    currentData = extractedData;
+                    
+                    showLoading(false);
+                    showStatus(`文件读取成功！共 ${extractedData.length} 行数据`, 'success');
+                    
+                    showPreview(extractedData);
+                    generateResult();
+                    
+                } catch (error) {
+                    showLoading(false);
+                    console.error("File processing error:", error);
+                    showStatus('文件读取失败：' + error.message, 'error');
+                }
+            };
+            
+            reader.onerror = function(error) {
+                showLoading(false);
+                console.error("FileReader error:", error);
+                showStatus('文件读取时发生错误。', 'error');
+            };
+            reader.readAsArrayBuffer(file);
+        }
+        
+        function extractDataWithHyperlinks(worksheet) {
+            const range = XLSX.utils.decode_range(worksheet['!ref']);
+            const result = [];
+            
+            for (let row = range.s.r; row <= range.e.r; row++) {
+                const rowData = [];
+                for (let col = range.s.c; col <= range.e.c; col++) {
+                    const cellAddress = XLSX.utils.encode_cell({r: row, c: col});
+                    const cell = worksheet[cellAddress];
+                    let cellData = { value: '', hyperlink: null };
+                    if (cell) {
+                        cellData.value = cell.v !== undefined ? String(cell.v) : '';
+                        if (cell.l) {
+                            cellData.hyperlink = cell.l.Target || cell.l.target || cell.l.Hyperlink || cell.l.hyperlink || (typeof cell.l === 'string' ? cell.l : null);
+                        }
+                    }
+                    rowData.push(cellData);
+                }
+                result.push(rowData);
+            }
+            return result;
+        }
+        
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+        
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+        
+        function showPreview(data) {
+            const previewDiv = document.getElementById('preview');
+            const userColInput = document.getElementById('userColumn').value;
+            const linkColInput = document.getElementById('linkColumn').value;
+            const startRowInput = document.getElementById('startRow').value;
+
+            if (!userColInput || !linkColInput || !startRowInput) {
+                showStatus("请确保所有设置字段（用户列、链接列、开始行）都已填写。", "error");
+                return;
+            }
+
+            const userCol = parseInt(userColInput) - 1;
+            const linkCol = parseInt(linkColInput) - 1;
+            const startRowVal = parseInt(startRowInput);
+            const startRow = startRowVal > 0 ? startRowVal -1 : 0;
+            
+            let html = '<h3>📋 数据预览 (前5行)</h3>';
+            html += '<table class="preview-table">';
+            html += '<tr><th>行号</th><th>用户名</th><th>显示文字</th><th>超链接地址</th></tr>';
+            
+            const previewLimit = Math.min(data.length, startRow + 5);
+            if (startRow >= data.length && data.length > 0) {
+                 html += `<tr><td colspan="4">开始行 (${startRowVal}) 超出数据总行数 (${data.length})。请调整开始行。</td></tr>`;
+            } else if (data.length === 0) {
+                 html += `<tr><td colspan="4">没有数据可预览。</td></tr>`;
+            } else {
+                for (let i = startRow; i < previewLimit; i++) {
+                    if (data[i]) {
+                        const row = data[i];
+                        const userCell = (row[userCol]) ? row[userCol] : {value: '', hyperlink: null};
+                        const linkCell = (row[linkCol]) ? row[linkCol] : {value: '', hyperlink: null};
+                        
+                        const userName = userCell.value || '';
+                        const displayText = linkCell.value || '';
+                        const hyperlinkUrl = linkCell.hyperlink || '无链接';
+                        
+                        html += `<tr>
+                            <td>${i + 1}</td>
+                            <td>${userName}</td>
+                            <td>${displayText}</td>
+                            <td style="word-break: break-all;">
+                                ${hyperlinkUrl !== '无链接' ? `<a href="${hyperlinkUrl}" target="_blank" style="color: #4facfe;">${hyperlinkUrl}</a>` : '<span style="color:#999;">无链接</span>'}
+                            </td>
+                        </tr>`;
+                    }
+                }
+            }
+            html += '</table>';
+            previewDiv.innerHTML = html;
+        }
+        
+        function generateResult() {
+            if (!currentData) {
+                showStatus("没有文件数据可处理。", "error");
+                return;
+            }
+            
+            const userCol = parseInt(document.getElementById('userColumn').value) - 1;
+            const linkCol = parseInt(document.getElementById('linkColumn').value) - 1;
+            const startRowVal = parseInt(document.getElementById('startRow').value);
+            const startRow = startRowVal > 0 ? startRowVal -1 : 0; 
+            const messagePrefix = document.getElementById('messagePrefix').value;
+            const messageSuffix = document.getElementById('messageSuffix').value;
+            const batchSize = parseInt(document.getElementById('batchSize').value);
+            const batchMode = document.getElementById('batchMode').value;
+
+            if (isNaN(userCol) || isNaN(linkCol) || isNaN(startRow) || isNaN(batchSize)) {
+                 showStatus("列号、行号或分批数量必须是有效的数字。", "error");
+                 return;
+            }
+            
+            const validUsers = [];
+            const invalidUsers = [];
+            
+            if (startRow >= currentData.length && currentData.length > 0) {
+                showStatus(`开始行 (${startRowVal}) 设置过大，没有数据可处理。`, "error");
+                document.getElementById('resultText').innerHTML = '<div class="result-box">没有数据可生成。</div>';
+                document.getElementById('result').style.display = 'block';
+                return;
+            }
+
+            for (let i = startRow; i < currentData.length; i++) {
+                const row = currentData[i];
+                if (!row) continue; 
+                const userCell = row[userCol] || {value: '', hyperlink: null};
+                const linkCell = row[linkCol] || {value: '', hyperlink: null};
+                
+                const userName = userCell.value;
+                const hyperlinkUrl = linkCell.hyperlink;
+                
+                if (userName && hyperlinkUrl) {
+                    validUsers.push({name: userName, link: hyperlinkUrl});
+                } else if (userName && !hyperlinkUrl) {
+                    invalidUsers.push(userName);
+                }
+            }
+            
+            let resultHTML = '';
+            let mainHeader = '';
+            
+            if (batchMode === 'single') {
+                mainHeader = `<h3>🎯 生成的微信消息</h3>`;
+                const singleMessage = generateSingleMessage(validUsers, invalidUsers, messagePrefix, messageSuffix);
+                 resultHTML = `<div class="result-box">${singleMessage.replace(/\\n/g, '<br>')}</div>
+                              <button class="btn copy-btn" style="margin-top:10px;" onclick="copyResult(this.previousElementSibling.innerText)">📋 复制消息</button>`;
+            } else {
+                const batchMessages = generateBatchMessages(validUsers, invalidUsers, messagePrefix, messageSuffix, batchSize);
+                mainHeader = `<h3>🎯 生成的微信消息 (${batchMessages.length > 0 && !(batchMessages.length === 1 && batchMessages[0].startsWith("没有有效数据")) ? batchMessages.length : '0'}批)</h3>`;
+                
+                if (batchMessages.length === 0 || (batchMessages.length === 1 && batchMessages[0].startsWith("没有有效数据"))){
+                     resultHTML = `<div class="result-box">${batchMessages.length > 0 ? batchMessages[0].replace(/\\n/g, '<br>') : '没有数据可生成消息。'}</div>`;
+                } else {
+                    batchMessages.forEach((msg, index) => {
+                        resultHTML += `<div style="margin-top: 20px;">
+                                         <h4>第 ${index + 1} 批消息</h4>
+                                         <div class="result-box" id="batch-message-${index}">${msg.replace(/\\n/g, '<br>')}</div>
+                                         <button class="btn copy-btn" style="margin-top:10px;" onclick="copyResult(document.getElementById('batch-message-${index}').innerText)">📋 复制第 ${index + 1} 批</button>
+                                     </div>`;
+                    });
+                }
+            }
+            
+            document.getElementById('resultText').innerHTML = mainHeader + resultHTML;
+            document.getElementById('result').style.display = 'block';
+            
+            const totalProcessedUsers = validUsers.length + invalidUsers.length;
+            let statusMsg = `生成完成！`;
+            if (startRow >= currentData.length && currentData.length > 0) {
+                statusMsg = `开始行 (${startRowVal}) 超出数据范围，未处理任何数据。`;
+            } else if (totalProcessedUsers > 0) {
+                 statusMsg += ` 从第 ${startRowVal} 行开始，共处理了 ${validUsers.length} 个有效链接`;
+                 if (invalidUsers.length > 0) {
+                    statusMsg += `，${invalidUsers.length} 个用户缺少链接`;
+                }
+            } else if (currentData.length > 0) {
+                 statusMsg += ` 从第 ${startRowVal} 行开始，没有找到有效数据。`;
+            } else {
+                statusMsg = `没有数据可处理。`;
+            }
+
+            if (batchMode === 'batch' && validUsers.length > 0 && validUsers.length > batchSize) {
+                const batchCount = Math.ceil(validUsers.length / batchSize);
+                statusMsg += `，已分为 ${batchCount} 批消息`;
+            }
+            showStatus(statusMsg, (validUsers.length > 0 || invalidUsers.length > 0) ? 'success' : 'error');
+        }
+        
+        function generateSingleMessage(validUsers, invalidUsers, prefix, suffix) {
+            if (validUsers.length === 0 && invalidUsers.length === 0) {
+                return "没有用户信息可生成。";
+            }
+            let result = prefix + '\\n\\n';
+            validUsers.forEach(user => {
+                result += `@${user.name} 你的文档链接：${user.link} \\n`;
+            });
+            if (invalidUsers.length > 0) {
+                result += '\\n'; 
+                invalidUsers.forEach(userName => {
+                    result += `@${userName} ⚠️ 未找到文档链接\\n`;
+                });
+            }
+            result += '\\n' + suffix;
+            result += `\\n\\n📊 本批次共 ${validUsers.length} 个文档`;
+            if (invalidUsers.length > 0) {
+                result += `\\n⚠️ ${invalidUsers.length} 个用户缺少链接`;
+            }
+            return result;
+        }
+        
+        function generateBatchMessages(validUsers, invalidUsers, prefix, suffix, batchSize) {
+            const messages = [];
+            if (validUsers.length === 0 && invalidUsers.length === 0) {
+                messages.push("没有有效数据可生成消息。");
+                return messages;
+            }
+
+            const totalBatches = validUsers.length > 0 ? Math.ceil(validUsers.length / batchSize) : 0;
+            for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+                let batchMessage = '';
+                const startIndex = batchIndex * batchSize;
+                const endIndex = Math.min(startIndex + batchSize, validUsers.length);
+                const batchUsers = validUsers.slice(startIndex, endIndex);
+                batchMessage += `${prefix}（第 ${batchIndex + 1}/${totalBatches} 批）\\n\\n`;
+                batchUsers.forEach(user => {
+                    const userName = user.name || '未知用户';
+                    const userLink = user.link || '';
+                    batchMessage += `@${userName} 你的文档链接：${userLink} \\n`;
+                });
+                batchMessage += '\\n' + suffix;
+                batchMessage += `\\n\\n📊 本批共 ${batchUsers.length} 个文档`;
+                if (batchIndex === totalBatches - 1 && totalBatches > 0) {
+                    batchMessage += `\\n📈 总计 ${validUsers.length} 个文档`;
+                }
+                messages.push(batchMessage);
+            }
+            
+            if (invalidUsers.length > 0) {
+                let invalidUsersMessage = '⚠️ 以下用户缺少文档链接：\\n\\n';
+                invalidUsers.forEach(userName => {
+                    invalidUsersMessage += `@${userName || '未知用户'} 请联系管理员获取文档链接\\n`;
+                });
+                invalidUsersMessage += `\\n📋 共 ${invalidUsers.length} 个用户需要补充链接`;
+                if (totalBatches > 0) { 
+                    messages.push('==================================================\\n\\n' + invalidUsersMessage);
+                } else { 
+                    messages.push(invalidUsersMessage);
+                }
+            }
+            
+            if (messages.length === 0) { 
+                 messages.push("没有有效数据可生成消息 (例如，所有用户都缺少链接，且没有其他可报告的信息)。");
+            }
+            return messages;
+        }
+        
+        function copyResult(textToCopy) {
+            if (typeof textToCopy !== 'string') {
+                textToCopy = String(textToCopy); 
+            }
+
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                showStatus('✅ 消息已复制到剪贴板！', 'success');
+                showMotivation(); // Trigger motivation
+            }).catch((err) => {
+                console.error('Clipboard API copy failed:', err);
+                const textArea = document.createElement('textarea');
+                textArea.value = textToCopy;
+                textArea.style.position = 'fixed'; 
+                textArea.style.opacity = '0';
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    showStatus('✅ 消息已复制到剪贴板！ (备用方法)', 'success');
+                    showMotivation(); // Trigger motivation
+                } catch (e) {
+                    console.error('execCommand copy failed:', e);
+                    showStatus('❌ 复制失败，请手动复制。', 'error');
+                }
+                document.body.removeChild(textArea);
+            });
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // Assign to global variables after DOM is loaded
+            motivationPopup = document.getElementById('motivationMessagePopup');
+            motivationText = document.getElementById('motivationText');
+
+            // Ensure other elements are also fetched here if they were global and accessed before DOM ready
+            // For this specific fix, only motivationPopup and motivationText are critical to be deferred.
+
+            ['userColumn', 'linkColumn', 'startRow', 'messagePrefix', 'messageSuffix', 'batchSize', 'batchMode'].forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    const eventType = (element.tagName === 'SELECT' || element.type === 'number' || element.type === 'text') ? 'change' : 'input';
+                    element.addEventListener(eventType, () => {
+                        if (currentData) {
+                            showPreview(currentData);
+                            generateResult();
+                        }
+                    });
+                     // For text and number inputs, also listen to 'input' for immediate feedback
+                    if (element.type === 'text' || element.type === 'number') {
+                         element.addEventListener('input', () => {
+                            if (currentData) {
+                                showPreview(currentData);
+                                generateResult();
+                            }
+                        });
+                    }
+                } else {
+                    console.warn(`Element with id '${id}' not found for event listener setup.`);
+                }
+            });
+        });
+    </script>
+
+    <div id="motivationMessagePopup" class="motivation-popup">
+        <p id="motivationText"></p>
+    </div>
+</body>
+</html>
