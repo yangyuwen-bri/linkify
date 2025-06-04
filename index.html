@@ -404,9 +404,35 @@
             border-right: 8px solid transparent;
             border-top: 8px solid rgba(255, 255, 255, 0.95);
         }
+
+        /* 粒子跳动爱心动画 */
+        .heart-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            /* background: transparent; */ /* PREVIOUS Transparent background */
+            background: #0a0a10; /* RESTORED Deep starry black */
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.8s ease-in-out; /* ADDED - For smooth fade-out */
+        }
+
+        .heart-animation.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
+    <!-- 粒子跳动爱心动画 -->
+    <div id="heartAnimation" class="heart-animation">
+        <canvas id="particleHeartCanvas"></canvas>
+    </div>
+
     <div class="container">
         <div class="header">
             <h1>🤖 素人稿件分发智能体</h1>
@@ -477,6 +503,187 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script>
+        // ========== 粒子跳动爱心动画 ==========
+        class ParticleBeatingHeart {
+            constructor(canvasId) {
+                this.canvas = document.getElementById(canvasId);
+                this.ctx = this.canvas.getContext('2d');
+                this.animationFrameId = null;
+                this.particles = [];
+                this.animationFrame = 0;
+
+                this.config = {
+                    width: 600,
+                    height: 500,
+                    heartScaleFactor: 12, 
+                    numCoreParticles: 700,  // INCREASED for more density (from 550)
+                    numAuraParticles: 150,  // INCREASED for more density (from 110)
+                    particleBaseSize: 1.0,  // Current: 1.0
+                    particleAddedSize: 1.4, // Current: 1.4
+                    beatFrequency: 0.035, 
+                    beatAmplitude: 0.07, 
+                    baseScale: 1.0,
+                    auraScatterMultiplier: 2.5,
+                    particleMaxLife: 100, // Reduced from 120
+                    particleDriftSpeed: 0.15,
+                    particleWiggleSpeed: 0.03
+                };
+
+                this.centerX = this.config.width / 2;
+                this.centerY = this.config.height / 2; // Re-centered vertically
+                
+                this.init();
+            }
+
+            init() {
+                this.canvas.width = this.config.width;
+                this.canvas.height = this.config.height;
+                this.setupParticles();
+                this.startAnimation();
+            }
+
+            // Parametric equation for the heart, inspired by the Python code's structure
+            parametricHeart(t) {
+                // Using the formula from the Python screenshot: x = 17*(sin(t)**3), y = -(16*cos(t)-5*cos(2*t)-2*cos(3*t)-cos(3*t))
+                // which simplifies to y = -(16*cos(t) - 5*cos(2*t) - 3*cos(3*t))
+                const x = 17 * Math.pow(Math.sin(t), 3);
+                const y = -(16 * Math.cos(t) - 5 * Math.cos(2 * t) - 3 * Math.cos(3 * t));
+                return { x, y };
+            }
+
+            setupParticles() {
+                this.particles = [];
+                // Core Particles
+                for (let i = 0; i < this.config.numCoreParticles; i++) {
+                    this.particles.push(this.createParticle(false));
+                }
+                // Aura Particles
+                for (let i = 0; i < this.config.numAuraParticles; i++) {
+                    this.particles.push(this.createParticle(true));
+                }
+            }
+
+            createParticle(isAura) {
+                const t = Math.random() * 2 * Math.PI;
+                const p = this.parametricHeart(t);
+
+                const baseRelX = p.x * this.config.heartScaleFactor;
+                const baseRelY = p.y * this.config.heartScaleFactor;
+
+                const scatterMultiplier = isAura ? this.config.auraScatterMultiplier : 1;
+                const initialDriftMagnitude = (5 + Math.random() * 15) * scatterMultiplier; 
+                const angle = Math.random() * 2 * Math.PI;
+                const initialDriftX = Math.cos(angle) * initialDriftMagnitude * (isAura ? 1.5 : 1);
+                const initialDriftY = Math.sin(angle) * initialDriftMagnitude * (isAura ? 1.5 : 1);
+
+                return {
+                    baseRelX: baseRelX,
+                    baseRelY: baseRelY,
+                    driftX: initialDriftX,
+                    driftY: initialDriftY,
+                    vx: (Math.random() - 0.5) * this.config.particleDriftSpeed,
+                    vy: (Math.random() - 0.5) * this.config.particleDriftSpeed,
+                    size: this.config.particleBaseSize + Math.random() * this.config.particleAddedSize * (isAura ? 1.5 : 1),
+                    color: isAura ? 
+                           `hsl(${330 + Math.random()*30}, 100%, ${80 + Math.random()*15}%)` : // Lighter pinks for aura
+                           `hsl(${320 + Math.random()*40}, 95%, ${65 + Math.random()*20}%)`, // Vibrant pinks for core
+                    opacity: (isAura ? 0.4 : 0.7) + Math.random() * 0.3, // NEW OPACITY (more solid)
+                    life: Math.random() * this.config.particleMaxLife,
+                    maxLife: this.config.particleMaxLife,
+                    isAura: isAura
+                };
+            }
+
+            updateAndDraw() {
+                this.animationFrame++;
+                const beatSine = Math.sin(this.animationFrame * this.config.beatFrequency);
+                const currentHeartGlobalScale = this.config.baseScale + beatSine * this.config.beatAmplitude;
+
+                this.ctx.fillStyle = 'rgba(10, 10, 16, 0.4)';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+                this.particles.forEach((p, index) => {
+                    p.driftX += p.vx;
+                    p.driftY += p.vy;
+
+                    const maxDrift = p.isAura ? 60 : 25;
+                    const maxDriftSquared = maxDrift * maxDrift;
+                    if ((p.driftX * p.driftX + p.driftY * p.driftY) > maxDriftSquared) {
+                        p.vx *= -0.6;
+                        p.vy *= -0.6;
+                         // Nudge back towards center of its drift zone if it strays too far
+                        p.driftX *= 0.95;
+                        p.driftY *= 0.95;
+                    }
+                    p.vx += (Math.random() - 0.5) * this.config.particleWiggleSpeed;
+                    p.vy += (Math.random() - 0.5) * this.config.particleWiggleSpeed;
+                    p.vx *= 0.97;
+                    p.vy *= 0.97;
+
+                    const displayX = this.centerX + (p.baseRelX + p.driftX) * currentHeartGlobalScale;
+                    const displayY = this.centerY + (p.baseRelY + p.driftY) * currentHeartGlobalScale;
+
+                    p.life--;
+                    if (p.life <= 0) {
+                        const newParticle = this.createParticle(p.isAura);
+                        this.particles[index] = newParticle; // Replace with a new particle
+                    }
+                    
+                    const dynamicOpacity = p.opacity * Math.max(0.1, p.life / p.maxLife) * (p.isAura ? 0.7 : 1);
+                    const dynamicSize = p.size * (p.isAura ? 1.1 : 1) * Math.max(0.5, p.life / (p.maxLife * 0.8));
+
+                    this.ctx.beginPath();
+                    this.ctx.arc(displayX, displayY, Math.max(0.1, dynamicSize) , 0, Math.PI * 2);
+                    this.ctx.fillStyle = p.color;
+                    this.ctx.globalAlpha = Math.max(0, dynamicOpacity);
+                    this.ctx.fill();
+                });
+                this.ctx.globalAlpha = 1; // Reset globalAlpha
+                this.ctx.shadowBlur = 0;  // Reset shadowBlur (ensure it's off globally after loop)
+            }
+
+            loop() {
+                this.updateAndDraw();
+                this.animationFrameId = requestAnimationFrame(this.loop.bind(this));
+            }
+
+            startAnimation() {
+                if (!this.animationFrameId) {
+                    this.loop();
+                }
+            }
+
+            stopAnimation() {
+                if (this.animationFrameId) {
+                    cancelAnimationFrame(this.animationFrameId);
+                    this.animationFrameId = null;
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const animationContainer = document.getElementById('heartAnimation');
+            const heartCanvas = document.getElementById('particleHeartCanvas');
+            let particleHeartInstance = null;
+
+            if (heartCanvas) {
+                particleHeartInstance = new ParticleBeatingHeart('particleHeartCanvas');
+            }
+            
+            // 3.8 seconds after DOM loaded, start fade out
+            setTimeout(() => {
+                animationContainer.classList.add('fade-out');
+                // After fade out transition (0.8s), stop animation and hide container
+                setTimeout(() => {
+                    if (particleHeartInstance) {
+                        particleHeartInstance.stopAnimation();
+                    }
+                    animationContainer.style.display = 'none';
+                }, 800);
+            }, 3800);
+        });
+
+        // ========== 原有代码 ==========
         let currentData = null;
         let motivationPopup;
         let motivationText;
@@ -900,19 +1107,19 @@
             if (batchMode === 'single') {
                 mainHeader = `<h3>🎯 生成的微信消息</h3>`;
                 const singleMessage = generateSingleMessage(validUsers, invalidUsers, messagePrefix, messageSuffix);
-                 resultHTML = `<div class="result-box">${singleMessage.replace(/\\n/g, '<br>')}</div>
+                 resultHTML = `<div class="result-box">${singleMessage.replace(/\n/g, '<br>')}</div>
                               <button class="btn copy-btn" style="margin-top:10px;" onclick="copyResult(this.previousElementSibling.innerText)">📋 复制消息</button>`;
             } else {
                 const batchMessages = generateBatchMessages(validUsers, invalidUsers, messagePrefix, messageSuffix, batchSize);
                 mainHeader = `<h3>🎯 生成的微信消息 (${batchMessages.length > 0 && !(batchMessages.length === 1 && batchMessages[0].startsWith("没有有效数据")) ? batchMessages.length : '0'}批)</h3>`;
                 
                 if (batchMessages.length === 0 || (batchMessages.length === 1 && batchMessages[0].startsWith("没有有效数据"))){
-                     resultHTML = `<div class="result-box">${batchMessages.length > 0 ? batchMessages[0].replace(/\\n/g, '<br>') : '没有数据可生成消息。'}</div>`;
+                     resultHTML = `<div class="result-box">${batchMessages.length > 0 ? batchMessages[0].replace(/\n/g, '<br>') : '没有数据可生成消息。'}</div>`;
                 } else {
                     batchMessages.forEach((msg, index) => {
                         resultHTML += `<div style="margin-top: 20px;">
                                          <h4>第 ${index + 1} 批消息</h4>
-                                         <div class="result-box" id="batch-message-${index}">${msg.replace(/\\n/g, '<br>')}</div>
+                                         <div class="result-box" id="batch-message-${index}">${msg.replace(/\n/g, '<br>')}</div>
                                          <button class="btn copy-btn" style="margin-top:10px;" onclick="copyResult(document.getElementById('batch-message-${index}').innerText)">📋 复制第 ${index + 1} 批</button>
                                      </div>`;
                     });
@@ -948,20 +1155,20 @@
             if (validUsers.length === 0 && invalidUsers.length === 0) {
                 return "没有用户信息可生成。";
             }
-            let result = prefix + '\\n\\n';
+            let result = prefix + '\n\n';
             validUsers.forEach(user => {
-                result += `@${user.name} 你的文档链接：${user.link} \\n`;
+                result += `@${user.name} 你的文档链接：${user.link} \n`;
             });
             if (invalidUsers.length > 0) {
-                result += '\\n'; 
+                result += '\n'; 
                 invalidUsers.forEach(userName => {
-                    result += `@${userName} ⚠️ 未找到文档链接\\n`;
+                    result += `@${userName} ⚠️ 未找到文档链接\n`;
                 });
             }
-            result += '\\n' + suffix;
-            result += `\\n\\n📊 本批次共 ${validUsers.length} 个文档`;
+            result += '\n' + suffix;
+            result += `\n\n📊 本批次共 ${validUsers.length} 个文档`;
             if (invalidUsers.length > 0) {
-                result += `\\n⚠️ ${invalidUsers.length} 个用户缺少链接`;
+                result += `\n⚠️ ${invalidUsers.length} 个用户缺少链接`;
             }
             return result;
         }
@@ -979,28 +1186,28 @@
                 const startIndex = batchIndex * batchSize;
                 const endIndex = Math.min(startIndex + batchSize, validUsers.length);
                 const batchUsers = validUsers.slice(startIndex, endIndex);
-                batchMessage += `${prefix}（第 ${batchIndex + 1}/${totalBatches} 批）\\n\\n`;
+                batchMessage += `${prefix}（第 ${batchIndex + 1}/${totalBatches} 批）\n\n`;
                 batchUsers.forEach(user => {
                     const userName = user.name || '未知用户';
                     const userLink = user.link || '';
-                    batchMessage += `@${userName} 你的文档链接：${userLink} \\n`;
+                    batchMessage += `@${userName} 你的文档链接：${userLink} \n`;
                 });
-                batchMessage += '\\n' + suffix;
-                batchMessage += `\\n\\n📊 本批共 ${batchUsers.length} 个文档`;
+                batchMessage += '\n' + suffix;
+                batchMessage += `\n\n📊 本批共 ${batchUsers.length} 个文档`;
                 if (batchIndex === totalBatches - 1 && totalBatches > 0) {
-                    batchMessage += `\\n📈 总计 ${validUsers.length} 个文档`;
+                    batchMessage += `\n📈 总计 ${validUsers.length} 个文档`;
                 }
                 messages.push(batchMessage);
             }
             
             if (invalidUsers.length > 0) {
-                let invalidUsersMessage = '⚠️ 以下用户缺少文档链接：\\n\\n';
+                let invalidUsersMessage = '⚠️ 以下用户缺少文档链接：\n\n';
                 invalidUsers.forEach(userName => {
-                    invalidUsersMessage += `@${userName || '未知用户'} 请联系管理员获取文档链接\\n`;
+                    invalidUsersMessage += `@${userName || '未知用户'} 请联系管理员获取文档链接\n`;
                 });
-                invalidUsersMessage += `\\n📋 共 ${invalidUsers.length} 个用户需要补充链接`;
+                invalidUsersMessage += `\n📋 共 ${invalidUsers.length} 个用户需要补充链接`;
                 if (totalBatches > 0) { 
-                    messages.push('==================================================\\n\\n' + invalidUsersMessage);
+                    messages.push('==================================================\n\n' + invalidUsersMessage);
                 } else { 
                     messages.push(invalidUsersMessage);
                 }
