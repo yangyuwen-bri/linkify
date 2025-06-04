@@ -340,6 +340,70 @@
             0%, 100% { opacity: 1; transform: scale(1); }
             50% { opacity: 0.7; transform: scale(1.2); }
         }
+
+        .prize-card.shake {
+            animation: shake-and-plea 2s ease-in-out;
+        }
+
+        @keyframes shake-and-plea {
+            0%, 100% { transform: translate(-50%, -50%) rotate(0deg); }
+            5% { transform: translate(-50%, -50%) rotate(-2deg) scale(1.01); }
+            10% { transform: translate(-50%, -50%) rotate(2deg) scale(1.01); }
+            15% { transform: translate(-50%, -50%) rotate(-2deg) scale(1.01); }
+            20% { transform: translate(-50%, -50%) rotate(2deg) scale(1.01); }
+            25% { transform: translate(-50%, -50%) rotate(-1.5deg) scale(1.005); }
+            30% { transform: translate(-50%, -50%) rotate(1.5deg) scale(1.005); }
+            35% { transform: translate(-50%, -50%) rotate(-1deg) scale(1.005); }
+            40% { transform: translate(-50%, -50%) rotate(1deg) scale(1.005); }
+            45% { transform: translate(-50%, -50%) rotate(-0.5deg) scale(1.002); }
+            50% { transform: translate(-50%, -50%) rotate(0.5deg) scale(1.002); }
+            60% { transform: translate(-50%, -50%) rotate(0deg) scale(1); }
+        }
+
+        .prize-close-btn.pleading {
+            background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%);
+            animation: button-pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes button-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+        }
+
+        .plea-message {
+            position: absolute;
+            top: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            color: #ff6b9d;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            white-space: nowrap;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            opacity: 0;
+            transition: opacity 0.6s ease;
+            z-index: 1002;
+        }
+
+        .plea-message.show {
+            opacity: 1;
+        }
+
+        .plea-message::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 8px solid rgba(255, 255, 255, 0.95);
+        }
     </style>
 </head>
 <body>
@@ -565,6 +629,68 @@
         function closePrizeCard() {
             const prizeCard = document.getElementById('prizeCard');
             prizeCard.classList.remove('show');
+        }
+        
+        let pleaAttempted = false; // 跟踪是否已经进行过挽留
+
+        function handlePrizeClose() {
+            if (!pleaAttempted) {
+                // 第一次点击 - 挽留用户
+                pleaAttempted = true;
+                showPleaAnimation();
+            } else {
+                // 第二次点击 - 显示告别消息然后关闭
+                showFarewellAndClose();
+            }
+        }
+
+        function showPleaAnimation() {
+            const prizeCard = document.getElementById('prizeCard');
+            const pleaMessage = document.getElementById('pleaMessage');
+            const closeBtn = document.getElementById('prizeCloseBtn');
+            
+            // 卡片摇晃动画
+            prizeCard.classList.add('shake');
+            
+            // 显示挽留消息
+            pleaMessage.classList.add('show');
+            
+            // 按钮变色并跳动
+            closeBtn.classList.add('pleading');
+            closeBtn.textContent = '💔';
+            
+            // 2秒后移除摇晃动画
+            setTimeout(() => {
+                prizeCard.classList.remove('shake');
+            }, 2000);
+            
+            // 5秒后隐藏挽留消息，按钮恢复
+            setTimeout(() => {
+                pleaMessage.classList.remove('show');
+                closeBtn.classList.remove('pleading');
+                closeBtn.textContent = '😢';
+            }, 5000);
+        }
+
+        function showFarewellAndClose() {
+            const pleaMessage = document.getElementById('pleaMessage');
+            const closeBtn = document.getElementById('prizeCloseBtn');
+            
+            // 显示告别消息
+            pleaMessage.textContent = '好吧，记得找小羊兑奖哦～ 🐑💕';
+            pleaMessage.classList.add('show');
+            closeBtn.textContent = '👋';
+            
+            // 2.5秒后关闭卡片
+            setTimeout(() => {
+                closePrizeCard();
+                // 重置状态
+                pleaAttempted = false;
+                pleaMessage.textContent = '不要走呀～～先给小羊发个兑奖消息吧！🐑💕';
+                pleaMessage.classList.remove('show');
+                closeBtn.textContent = '×';
+                closeBtn.classList.remove('pleading');
+            }, 2500);
         }
         
         // File upload related
@@ -954,12 +1080,13 @@
     </div>
 
     <div id="prizeCard" class="prize-card">
+        <div class="plea-message" id="pleaMessage">不要走呀～～先给小羊发个兑奖消息吧！🐑💕</div>
         <div class="prize-card-header">🎊✨ 恭喜中奖 ✨🎊</div>
         <div class="prize-card-content">
             🐑 请找小羊抽取幸运7彩票 🐑<br>
             <small style="opacity: 0.9;">你太幸运了！</small>
         </div>
-        <button class="prize-close-btn" onclick="closePrizeCard()">×</button>
+        <button class="prize-close-btn" id="prizeCloseBtn" onclick="handlePrizeClose()">×</button>
     </div>
 </body>
 </html>
